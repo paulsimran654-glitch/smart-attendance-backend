@@ -54,9 +54,13 @@ ADMIN_PASSWORD=admin_password
 
 ## Installation
 
-Clone the repository: git clone https://github.com/paulsimran654-glitch/smart-attendance-backend.git
-Install dependencies: npm install
-Start the server: node server.js or npm run dev
+Clone the repository: `git clone https://github.com/paulsimran654-glitch/smart-attendance-backend.git`
+Install dependencies: `npm install`
+Start the server: `node server.js` or `npm run dev`
+
+
+---
+
 
 ## API Endpoints (Basic)
 

@@ -33,6 +33,7 @@ The backend handles authentication, user management, and communication with the 
 
 ## Project Structure
 
+```
 
 config/ # Database configuration
 controllers/ # Business logic
@@ -42,39 +43,41 @@ routes/ # API routes
 docs/ # Development documentation
 server.js # Main server entry point
 
+```
+
 
 ---
 
 ## Installation
 
-Clone the repository
+Clone the repository:
 
 
-git clone https://github.com/paulsimran654-glitch/smart-attendance-backend.git
+```git clone https://github.com/paulsimran654-glitch/smart-attendance-backend.git```
 
 
-Install dependencies
+Install dependencies:
 
 
-npm install
+```npm install```
 
 
-Start the server
+Start the server:
 
 
-node server.js
+```node server.js```
 
 
 or
 
 
-npm run dev
+```npm run dev```
 
 
-Server will run on
+Server will run on:
 
 
-http://localhost:5000
+```http://localhost:5000```
 
 
 ---

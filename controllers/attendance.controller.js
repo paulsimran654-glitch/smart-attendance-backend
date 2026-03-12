@@ -29,7 +29,19 @@ exports.scanQR = async (req, res) => {
 
 try {
 
-const { latitude, longitude } = req.body;
+const { latitude, longitude, qr } = req.body;
+
+let qrData;
+
+try{
+qrData = JSON.parse(qr);
+}catch{
+return res.status(400).json({message:"Invalid QR"});
+}
+
+if(qrData.type !== "attendance"){
+return res.status(400).json({message:"Invalid QR"});
+}
 
 const user = req.user;
 
@@ -57,8 +69,8 @@ if(!attendance){
 
 let status="present";
 
-if(time>"09:15"){
-status="late";
+if(time > "09:15"){
+status = "Late";
 }
 
 attendance = await Attendance.create({

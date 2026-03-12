@@ -13,6 +13,9 @@ const app = express();
 /* =========================
    Admin Seeder Logic
 ========================= */
+app.use(express.json());
+app.use(cookieParser());
+
 
 const createFirstAdmin = async () => {
   try {
@@ -57,13 +60,16 @@ const createFirstAdmin = async () => {
 
 app.use(
   cors({
-    origin: "http://localhost:5173",
+    origin: [
+      "http://192.168.1.8:5173",
+      "http://192.168.1.8:5173",
+      "http://localhost:5173"
+    ],
     credentials: true,
   })
 );
 
-app.use(express.json());
-app.use(cookieParser());
+
 
 app.use("/api/auth", require("./routes/auth.routes"));
 app.use("/api/admin", require("./routes/admin.routes"));

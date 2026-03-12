@@ -18,7 +18,6 @@ exports.login = async (req, res) => {
   try {
     const { email, password } = req.body;
 
-    // find user
     const user = await User.findOne({ email });
 
     if (!user) {
@@ -28,7 +27,6 @@ exports.login = async (req, res) => {
       });
     }
 
-    // compare password
     const match = await bcrypt.compare(password, user.password);
 
     if (!match) {
@@ -38,18 +36,16 @@ exports.login = async (req, res) => {
       });
     }
 
-    // create token
     const token = createToken(user);
 
-    // set cookie
+    // FIXED COOKIE
     res.cookie("token", token, {
       httpOnly: true,
-      sameSite: "lax",
-      secure: false, // change to true in production
+      // sameSite: "none",   // important
+      secure: false,      // dev environment
       maxAge: 24 * 60 * 60 * 1000,
     });
 
-    // send safe user object
     const safeUser = await User.findById(user._id).select("-password");
 
     res.json({

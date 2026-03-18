@@ -2,7 +2,7 @@ const Attendance = require("../models/Attendance");
 const User = require("../models/User");
 const moment = require("moment-timezone");
 
-// ✅ Safe ENV parsing
+// ENV
 const OFFICE_LAT = parseFloat(process.env.OFFICE_LAT) || 0;
 const OFFICE_LNG = parseFloat(process.env.OFFICE_LNG) || 0;
 const ALLOWED_RADIUS = parseInt(process.env.ALLOWED_RADIUS) || 100;
@@ -37,7 +37,6 @@ exports.scanQR = async (req, res) => {
   try {
     let { latitude, longitude, qr } = req.body;
 
-    // ✅ Fix: Convert to number
     latitude = parseFloat(latitude);
     longitude = parseFloat(longitude);
 
@@ -59,6 +58,13 @@ exports.scanQR = async (req, res) => {
       return res.status(400).json({ message: "Invalid QR" });
     }
 
+    // ✅ NEW: mode check
+    const mode = qrData.mode; // checkin / checkout
+
+    if (!["checkin", "checkout"].includes(mode)) {
+      return res.status(400).json({ message: "Invalid QR mode" });
+    }
+
     // =======================
     // USER
     // =======================
@@ -77,8 +83,6 @@ exports.scanQR = async (req, res) => {
       OFFICE_LNG
     );
 
-    console.log("Distance:", distance);
-
     if (distance > ALLOWED_RADIUS) {
       return res.status(400).json({
         message: "Not inside office location",
@@ -96,15 +100,22 @@ exports.scanQR = async (req, res) => {
       now = now.clone().set({
         hour,
         minute,
-        second: 0,
-        millisecond: 0,
       });
     }
 
-    const today = now.format("YYYY-MM-DD");
+    const today = now.clone().startOf("day").toDate(); // ✅ FIXED
     const minutesNow = now.hours() * 60 + now.minutes();
 
-    console.log("TIME:", now.format("HH:mm"));
+    // =======================
+    // WEEKDAY CHECK (Mon–Fri)
+    // =======================
+    const day = now.isoWeekday(); // 1 = Monday, 7 = Sunday
+
+    if (day > 5) {
+      return res.status(400).json({
+        message: "Attendance allowed only on weekdays",
+      });
+    }
 
     // =======================
     // TIME WINDOWS
@@ -116,17 +127,23 @@ exports.scanQR = async (req, res) => {
     const CHECKOUT_END = 17 * 60 + 30;
 
     // =======================
-    // FIND ATTENDANCE (FIXED)
+    // FIND ATTENDANCE
     // =======================
     let attendance = await Attendance.findOne({
       employee: user.id,
       date: today,
-    }).sort({ createdAt: -1 });
+    });
 
     // =======================
     // CHECK-IN
     // =======================
-    if (minutesNow >= CHECKIN_START && minutesNow <= CHECKIN_END) {
+    if (mode === "checkin") {
+
+      if (minutesNow < CHECKIN_START || minutesNow > CHECKIN_END) {
+        return res.status(400).json({
+          message: "Check-in QR not active",
+        });
+      }
 
       if (attendance && attendance.checkIn) {
         return res.status(400).json({
@@ -136,7 +153,8 @@ exports.scanQR = async (req, res) => {
 
       let status = "present";
 
-      if (minutesNow > 9 * 60 + 15) {
+      // ✅ UPDATED LOGIC
+      if (minutesNow >= (9 * 60 + 16)) {
         status = "late";
       }
 
@@ -149,7 +167,7 @@ exports.scanQR = async (req, res) => {
       });
 
       return res.json({
-        type: "checkin",   // ✅ IMPORTANT
+        type: "checkin",
         message: "Check-in successful",
         time: now.format("HH:mm"),
         status,
@@ -159,7 +177,13 @@ exports.scanQR = async (req, res) => {
     // =======================
     // CHECK-OUT
     // =======================
-    else if (minutesNow >= CHECKOUT_START && minutesNow <= CHECKOUT_END) {
+    if (mode === "checkout") {
+
+      if (minutesNow < CHECKOUT_START || minutesNow > CHECKOUT_END) {
+        return res.status(400).json({
+          message: "Check-out QR not active",
+        });
+      }
 
       if (!attendance || !attendance.checkIn) {
         return res.status(400).json({
@@ -177,19 +201,10 @@ exports.scanQR = async (req, res) => {
       await attendance.save();
 
       return res.json({
-        type: "checkout",   // ✅ IMPORTANT (frontend fix)
+        type: "checkout",
         message: "Check-out successful",
         time: now.format("HH:mm"),
         status: attendance.status,
-      });
-    }
-
-    // =======================
-    // OUTSIDE WINDOW
-    // =======================
-    else {
-      return res.status(400).json({
-        message: "QR not active at this time",
       });
     }
 
@@ -200,3 +215,4 @@ exports.scanQR = async (req, res) => {
     });
   }
 };
+

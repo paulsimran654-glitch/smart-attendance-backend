@@ -216,3 +216,22 @@ exports.scanQR = async (req, res) => {
   }
 };
 
+// =======================
+// GET EMPLOYEE HISTORY
+// =======================
+exports.getHistory = async (req, res) => {
+  try {
+
+    const attendance = await Attendance.find({
+      employee: req.user.id
+    }).sort({ createdAt: -1 });
+
+    return res.json(attendance);
+
+  } catch (err) {
+    console.error("HISTORY ERROR:", err);
+    return res.status(500).json({
+      message: "Error fetching history"
+    });
+  }
+};

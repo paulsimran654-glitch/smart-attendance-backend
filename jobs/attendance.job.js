@@ -137,7 +137,7 @@ setTimeout(() => {
 
   setQR({
     type: "attendance",
-    mode: "checkin",
+    mode: "checkout",
     date: moment().format("YYYY-MM-DD")
   });
 

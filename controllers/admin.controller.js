@@ -130,3 +130,20 @@ exports.deleteEmployee = async (req, res) => {
   }
 
 };
+
+// ================= GET ALL ATTENDANCE =================
+const Attendance = require("../models/Attendance");
+
+exports.getAllAttendance = async (req, res) => {
+  try {
+
+    const records = await Attendance.find()
+      .populate("employee", "name department")
+      .sort({ createdAt: -1 });
+
+    res.json(records);
+
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};

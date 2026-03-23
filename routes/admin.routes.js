@@ -7,9 +7,9 @@ const {
   getAllUsers,
   createEmployee,
   updateEmployee,
-  deleteEmployee
+  deleteEmployee,
+  getAllAttendance   // ✅ added
 } = require("../controllers/admin.controller");
-
 
 /* Get all employees */
 router.get("/users", auth, requireAdmin, getAllUsers);
@@ -22,5 +22,8 @@ router.put("/users/:id", auth, requireAdmin, updateEmployee);
 
 /* Delete employee */
 router.delete("/users/:id", auth, requireAdmin, deleteEmployee);
+
+/* ✅ NEW: Get all attendance */
+router.get("/attendance", auth, requireAdmin, getAllAttendance);
 
 module.exports = router;

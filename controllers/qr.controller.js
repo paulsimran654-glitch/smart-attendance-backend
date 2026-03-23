@@ -1,50 +1,80 @@
+const QR = require("../models/QR");
 const moment = require("moment-timezone");
-
-// 👉 Global QR state (simple + safe for your project)
-let currentQR = {
-  active: false,
-  qr: null
-};
 
 // =======================
 // GET CURRENT QR
 // =======================
-exports.getCurrentQR = (req, res) => {
+exports.getCurrentQR = async (req, res) => {
+  try {
 
-  const now = moment().tz("Asia/Kolkata");
-  const day = now.isoWeekday();
+    const now = moment().tz("Asia/Kolkata");
+    const day = now.isoWeekday();
 
-  // ❌ Weekend → no QR
-  if (day > 5) {
-    return res.json({ active: false });
+    // ❌ Weekend → no QR
+    if (day > 5) {
+      return res.json({ active: false });
+    }
+
+    // ✅ Get latest QR from DB
+    const qr = await QR.findOne().sort({ createdAt: -1 });
+
+    if (!qr || !qr.active) {
+      return res.json({ active: false });
+    }
+
+    return res.json({
+      active: true,
+      qr: {
+        type: qr.type,
+        mode: qr.mode,
+        date: qr.date
+      }
+    });
+
+  } catch (err) {
+    console.error("QR FETCH ERROR:", err.message);
+    return res.status(500).json({ message: "Error fetching QR" });
   }
-
-  if (!currentQR.active) {
-    return res.json({ active: false });
-  }
-
-  return res.json({
-    active: true,
-    qr: currentQR.qr
-  });
 };
 
-// =======================
-// SET QR (used by cron)
-// =======================
-exports.setQR = (qrData) => {
-  currentQR = {
-    active: true,
-    qr: qrData
-  };
-};
 
 // =======================
-// CLEAR QR (used by cron)
+// SET QR (USED BY CRON)
 // =======================
-exports.clearQR = () => {
-  currentQR = {
-    active: false,
-    qr: null
-  };
+exports.setQR = async (qrData) => {
+  try {
+
+    await QR.findOneAndUpdate(
+      {}, // single QR document
+      {
+        ...qrData,
+        active: true
+      },
+      {
+        upsert: true,
+        new: true
+      }
+    );
+
+    console.log("✅ QR stored in DB");
+
+  } catch (err) {
+    console.error("QR SET ERROR:", err.message);
+  }
+};
+
+
+// =======================
+// CLEAR QR (USED BY CRON)
+// =======================
+exports.clearQR = async () => {
+  try {
+
+    await QR.findOneAndUpdate({}, { active: false });
+
+    console.log("⛔ QR deactivated");
+
+  } catch (err) {
+    console.error("QR CLEAR ERROR:", err.message);
+  }
 };

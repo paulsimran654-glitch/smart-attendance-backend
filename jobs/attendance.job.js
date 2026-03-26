@@ -3,55 +3,52 @@ const Attendance = require("../models/Attendance");
 const User = require("../models/User");
 const moment = require("moment-timezone");
 
-// ✅ IMPORT QR FUNCTIONS (NEW)
 const { setQR, clearQR } = require("../controllers/qr.controller");
 
 // =======================
-// AUTO ABSENT FUNCTION
+// AUTO ABSENT FUNCTION (FIXED)
 // =======================
 const markAbsent = async () => {
   try {
 
     const now = moment().tz("Asia/Kolkata");
 
-    // ✅ Weekday check (Mon–Fri only)
-    const day = now.isoWeekday();
-    if (day > 5) {
-      console.log("⏭ Skipping absent marking (Weekend)");
+    if (now.isoWeekday() > 5) {
+      console.log("⏭ Weekend skip");
       return;
     }
 
-    const today = now.clone().startOf("day").toDate();
+    const todayStr = now.format("YYYY-MM-DD");
 
     const employees = await User.find({ role: "employee" });
 
     for (const emp of employees) {
 
-      const exists = await Attendance.findOne({
+      const record = await Attendance.findOne({
         employee: emp._id,
-        date: today,
+        dateString: todayStr
       });
 
-      // ✅ If no attendance → mark absent
-      if (!exists) {
+      if (!record) {
         await Attendance.create({
           employee: emp._id,
           employeeId: emp.employeeId,
-          date: today,
+          date: now.toDate(),
+          dateString: todayStr,
           status: "absent",
-          isAutoAbsent: true,
+          isAutoAbsent: true
         });
+        continue;
       }
 
-      // ✅ If exists but no check-in → also mark absent
-      else if (!exists.checkIn) {
-        exists.status = "absent";
-        exists.isAutoAbsent = true;
-        await exists.save();
-      }
+      if (record.checkIn) continue;
+
+      record.status = "absent";
+      record.isAutoAbsent = true;
+      await record.save();
     }
 
-    console.log("✅ Absent marked successfully at 9:31 AM");
+    console.log("✅ Absent marked successfully at 9:31");
 
   } catch (err) {
     console.error("❌ Error in markAbsent:", err.message);
@@ -59,86 +56,111 @@ const markAbsent = async () => {
 };
 
 // =======================
-// CRON JOBS
+// CRON JOBS (REAL SYSTEM)
 // =======================
 
-// 🚨 Auto Absent at 9:31 AM
 cron.schedule("31 9 * * *", markAbsent);
 
-
-// =======================
-// ✅ REAL QR GENERATION (NEW)
-// =======================
-
-// 🟢 CHECK-IN QR (8:45 AM)
 cron.schedule("45 8 * * *", () => {
-
   const now = moment().tz("Asia/Kolkata");
-  const day = now.isoWeekday();
 
-  if (day > 5) {
-    console.log("⏭ Weekend - No Check-in QR");
-    return;
-  }
+  if (now.isoWeekday() > 5) return;
 
-  const qrData = {
+  setQR({
     type: "attendance",
     mode: "checkin",
     date: now.format("YYYY-MM-DD")
-  };
+  });
 
-  setQR(qrData);
-
-  console.log("🟢 Check-in QR GENERATED (8:45 - 9:30)");
+  console.log("🟢 Check-in QR ACTIVE (8:45 - 9:30)");
 });
 
-
-// ❌ CLEAR QR AFTER CHECK-IN WINDOW (9:31 AM)
 cron.schedule("31 9 * * *", () => {
   clearQR();
-  console.log("⛔ Check-in QR cleared (after 9:30)");
+  console.log("⛔ Check-in QR cleared");
 });
 
-
-// 🔵 CHECK-OUT QR (4:45 PM)
 cron.schedule("45 16 * * *", () => {
-
   const now = moment().tz("Asia/Kolkata");
-  const day = now.isoWeekday();
 
-  if (day > 5) {
-    console.log("⏭ Weekend - No Check-out QR");
-    return;
-  }
-
-  const qrData = {
-    type: "attendance",
-    mode: "checkout",
-    date: now.format("YYYY-MM-DD")
-  };
-
-  setQR(qrData);
-
-  console.log("🔵 Check-out QR GENERATED (4:45 - 5:30)");
-});
-
-
-// ❌ CLEAR QR AFTER CHECK-OUT WINDOW (5:31 PM)
-cron.schedule("31 17 * * *", () => {
-  clearQR();
-  console.log("⛔ Check-out QR cleared (after 5:30)");
-});
-
-// =======================
-// ⚡ TEMP TEST (REMOVE AFTER TESTING)
-// =======================
-setTimeout(() => {
-  console.log("⚡ TEST: Generating QR manually");
+  if (now.isoWeekday() > 5) return;
 
   setQR({
     type: "attendance",
     mode: "checkout",
-    date: moment().format("YYYY-MM-DD")
+    date: now.format("YYYY-MM-DD")
   });
 
-}, 3000);
+  console.log("🔵 Check-out QR ACTIVE (4:45 - 5:30)");
+});
+
+cron.schedule("31 17 * * *", () => {
+  clearQR();
+  console.log("⛔ Check-out QR cleared");
+});
+
+
+// =======================
+// ⚡ TEST MODE (FULL FIX)
+// =======================
+if (process.env.TEST_MODE === "true") {
+
+  setTimeout(async () => {
+
+    console.log("⚡ TEST MODE ACTIVE");
+
+    const now = moment().tz("Asia/Kolkata");
+    const testTime = process.env.TEST_TIME;
+
+    if (!testTime) return;
+
+    const [hour, minute] = testTime.split(":").map(Number);
+    const totalMinutes = hour * 60 + minute;
+
+    const CHECKIN_START = 8 * 60 + 45;
+    const CHECKIN_END = 9 * 60 + 30;
+
+    const CHECKOUT_START = 16 * 60 + 45;
+    const CHECKOUT_END = 17 * 60 + 30;
+
+    // ================= QR LOGIC =================
+
+    // 🟢 CHECK-IN WINDOW
+    if (totalMinutes >= CHECKIN_START && totalMinutes <= CHECKIN_END) {
+
+      await setQR({
+        type: "attendance",
+        mode: "checkin",
+        date: now.format("YYYY-MM-DD")
+      });
+
+      console.log("⚡ TEST: Check-in QR active");
+    }
+
+    // 🔵 CHECK-OUT WINDOW
+    else if (totalMinutes >= CHECKOUT_START && totalMinutes <= CHECKOUT_END) {
+
+      await setQR({
+        type: "attendance",
+        mode: "checkout",
+        date: now.format("YYYY-MM-DD")
+      });
+
+      console.log("⚡ TEST: Check-out QR active");
+    }
+
+    // ❌ OUTSIDE WINDOW → CLEAR QR
+    else {
+
+      await clearQR();
+      console.log("⚡ TEST: QR cleared (outside window)");
+    }
+
+    // ================= ABSENT TEST =================
+    if (process.env.TEST_ABSENT === "true") {
+      console.log("⚡ TEST: Running absent marking manually");
+      await markAbsent();
+    }
+
+  }, 3000);
+}

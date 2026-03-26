@@ -5,47 +5,58 @@ const attendanceSchema = new mongoose.Schema(
     employee: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "User",
-      required: true
+      required: true,
     },
 
     employeeId: {
       type: String,
-      required: true
+      required: true,
     },
 
-    // ✅ Changed to Date (IMPORTANT for cron)
+    // ✅ REAL DATE (for sorting / analytics)
     date: {
       type: Date,
-      required: true
+      required: true,
+    },
+
+    // ✅ FIX: STRING DATE (for exact matching)
+    dateString: {
+      type: String,
+      required: true,
     },
 
     checkIn: {
       type: String,
-      default: null
+      default: null,
     },
 
     checkOut: {
       type: String,
-      default: null
+      default: null,
     },
 
     status: {
       type: String,
       enum: ["present", "late", "absent"],
-      default: "present"
+      default: "present",
     },
 
-    // ✅ NEW: track auto-absent
+    // ✅ auto-absent flag
     isAutoAbsent: {
       type: Boolean,
-      default: false
-    }
-
+      default: false,
+    },
   },
   { timestamps: true }
 );
 
-// ✅ Keep unique (VERY IMPORTANT)
-attendanceSchema.index({ employee: 1, date: 1 }, { unique: true });
+
+// =======================
+// ✅ FIXED UNIQUE INDEX
+// =======================
+attendanceSchema.index(
+  { employee: 1, dateString: 1 },
+  { unique: true }
+);
 
 module.exports = mongoose.model("Attendance", attendanceSchema);

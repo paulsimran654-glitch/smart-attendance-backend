@@ -4,7 +4,8 @@ const auth = require("../middleware/auth.middleware");
 
 const {
   scanQR,
-  getHistory   // ✅ added
+  getHistory,
+  getTodayAttendance
 } = require("../controllers/attendance.controller");
 
 // =======================
@@ -16,5 +17,10 @@ router.post("/scan", auth, scanQR);
 // GET HISTORY
 // =======================
 router.get("/history", auth, getHistory);
+
+// =======================
+// GET TODAY (DASHBOARD)
+// =======================
+router.get("/today", auth, getTodayAttendance);
 
 module.exports = router;

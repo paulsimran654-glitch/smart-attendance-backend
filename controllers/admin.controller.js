@@ -1,5 +1,6 @@
 const User = require("../models/User");
 const bcrypt = require("bcryptjs");
+const Attendance = require("../models/Attendance");
 
 
 // ================= GET ALL USERS =================
@@ -18,23 +19,30 @@ exports.getAllUsers = async (req, res) => {
 };
 
 
-
 // ================= CREATE EMPLOYEE =================
 exports.createEmployee = async (req, res) => {
-
   try {
 
     const { name, email, phone, department, password } = req.body;
 
+    // ✅ CHECK EMAIL
     const existing = await User.findOne({ email });
-
     if (existing) {
       return res.status(400).json({ message: "Email already exists" });
     }
 
-    const count = await User.countDocuments({ role: "employee" });
+    // ✅ FIX: GET LAST EMPLOYEE (NO DUPLICATE ID)
+    const lastEmployee = await User.findOne({ role: "employee" })
+      .sort({ createdAt: -1 });
 
-    const employeeId = "EMP" + String(count + 1).padStart(3, "0");
+    let employeeId = "EMP001";
+
+    if (lastEmployee && lastEmployee.employeeId) {
+      const lastNumber = parseInt(
+        lastEmployee.employeeId.replace("EMP", "")
+      );
+      employeeId = "EMP" + String(lastNumber + 1).padStart(3, "0");
+    }
 
     const hashedPassword = await bcrypt.hash(password, 10);
 
@@ -51,16 +59,13 @@ exports.createEmployee = async (req, res) => {
     res.status(201).json(employee);
 
   } catch (error) {
-
     res.status(500).json({ message: error.message });
-
   }
-
 };
+
 
 // ================= UPDATE EMPLOYEE =================
 exports.updateEmployee = async (req, res) => {
-
   try {
 
     const { id } = req.params;
@@ -101,20 +106,16 @@ exports.updateEmployee = async (req, res) => {
     res.json(safeEmployee);
 
   } catch (error) {
-
     res.status(500).json({
       message: "Failed to update employee",
       error: error.message
     });
-
   }
-
 };
 
 
 // ================= DELETE EMPLOYEE =================
 exports.deleteEmployee = async (req, res) => {
-
   try {
 
     const { id } = req.params;
@@ -124,16 +125,12 @@ exports.deleteEmployee = async (req, res) => {
     res.json({ message: "Employee deleted successfully" });
 
   } catch (error) {
-
     res.status(500).json({ message: error.message });
-
   }
-
 };
 
-// ================= GET ALL ATTENDANCE =================
-const Attendance = require("../models/Attendance");
 
+// ================= GET ALL ATTENDANCE =================
 exports.getAllAttendance = async (req, res) => {
   try {
 

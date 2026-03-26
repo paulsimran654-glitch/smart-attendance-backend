@@ -31,7 +31,7 @@ function getDistance(lat1, lon1, lat2, lon2) {
 }
 
 // =======================
-// MAIN CONTROLLER
+// SCAN QR
 // =======================
 exports.scanQR = async (req, res) => {
   try {
@@ -44,9 +44,6 @@ exports.scanQR = async (req, res) => {
       return res.status(400).json({ message: "Missing required data" });
     }
 
-    // =======================
-    // QR VALIDATION
-    // =======================
     let qrData;
     try {
       qrData = JSON.parse(qr);
@@ -58,24 +55,13 @@ exports.scanQR = async (req, res) => {
       return res.status(400).json({ message: "Invalid QR" });
     }
 
-    // ✅ NEW: mode check
-    const mode = qrData.mode; // checkin / checkout
+    const mode = qrData.mode;
 
-    if (!["checkin", "checkout"].includes(mode)) {
-      return res.status(400).json({ message: "Invalid QR mode" });
-    }
-
-    // =======================
-    // USER
-    // =======================
     const user = await User.findById(req.user.id);
     if (!user) {
       return res.status(404).json({ message: "User not found" });
     }
 
-    // =======================
-    // LOCATION CHECK
-    // =======================
     const distance = getDistance(
       latitude,
       longitude,
@@ -89,71 +75,46 @@ exports.scanQR = async (req, res) => {
       });
     }
 
-    // =======================
-    // TIME
-    // =======================
     let now = moment().tz("Asia/Kolkata");
 
     if (process.env.TEST_TIME) {
       const [hour, minute] = process.env.TEST_TIME.split(":").map(Number);
-
-      now = now.clone().set({
-        hour,
-        minute,
-      });
+      now = now.clone().set({ hour, minute });
     }
 
-    const today = now.clone().startOf("day").toDate(); // ✅ FIXED
+    const todayStr = now.format("YYYY-MM-DD");
     const minutesNow = now.hours() * 60 + now.minutes();
 
-    // =======================
-    // WEEKDAY CHECK (Mon–Fri)
-    // =======================
-    const day = now.isoWeekday(); // 1 = Monday, 7 = Sunday
-
-    if (day > 5) {
+    if (now.isoWeekday() > 5) {
       return res.status(400).json({
-        message: "Attendance allowed only on weekdays",
+        message: "Weekends not allowed",
       });
     }
 
-    // =======================
-    // TIME WINDOWS
-    // =======================
     const CHECKIN_START = 8 * 60 + 45;
     const CHECKIN_END = 9 * 60 + 30;
 
     const CHECKOUT_START = 16 * 60 + 45;
     const CHECKOUT_END = 17 * 60 + 30;
 
-    // =======================
-    // FIND ATTENDANCE
-    // =======================
     let attendance = await Attendance.findOne({
       employee: user.id,
-      date: today,
+      dateString: todayStr
     });
 
-    // =======================
-    // CHECK-IN
-    // =======================
+    // ================= CHECK-IN =================
     if (mode === "checkin") {
 
       if (minutesNow < CHECKIN_START || minutesNow > CHECKIN_END) {
-        return res.status(400).json({
-          message: "Check-in QR not active",
-        });
+        return res.status(400).json({ message: "Check-in QR not active" });
       }
 
       if (attendance && attendance.checkIn) {
-        return res.status(400).json({
-          message: "Already checked in",
-        });
+        return res.status(400).json({ message: "Already checked in" });
       }
 
       let status = "present";
 
-      // ✅ UPDATED LOGIC
       if (minutesNow >= (9 * 60 + 16)) {
         status = "late";
       }
@@ -161,7 +122,8 @@ exports.scanQR = async (req, res) => {
       attendance = await Attendance.create({
         employee: user.id,
         employeeId: user.employeeId,
-        date: today,
+        date: now.toDate(),
+        dateString: todayStr,
         checkIn: now.format("HH:mm"),
         status,
       });
@@ -174,20 +136,16 @@ exports.scanQR = async (req, res) => {
       });
     }
 
-    // =======================
-    // CHECK-OUT
-    // =======================
+    // ================= CHECK-OUT =================
     if (mode === "checkout") {
 
       if (minutesNow < CHECKOUT_START || minutesNow > CHECKOUT_END) {
-        return res.status(400).json({
-          message: "Check-out QR not active",
-        });
+        return res.status(400).json({ message: "Check-out QR not active" });
       }
 
       if (!attendance || !attendance.checkIn) {
         return res.status(400).json({
-          message: "Check-in required before check-out",
+          message: "Check-in required first",
         });
       }
 
@@ -210,28 +168,39 @@ exports.scanQR = async (req, res) => {
 
   } catch (err) {
     console.error("ERROR:", err);
-    return res.status(500).json({
-      message: "Server error",
-    });
+    return res.status(500).json({ message: "Server error" });
   }
 };
 
 // =======================
-// GET EMPLOYEE HISTORY
+// GET HISTORY
 // =======================
 exports.getHistory = async (req, res) => {
   try {
+    const records = await Attendance.find({ employee: req.user.id })
+      .sort({ date: -1 });
 
-    const attendance = await Attendance.find({
-      employee: req.user.id
-    }).sort({ createdAt: -1 });
-
-    return res.json(attendance);
-
+    res.json(records);
   } catch (err) {
-    console.error("HISTORY ERROR:", err);
-    return res.status(500).json({
-      message: "Error fetching history"
+    res.status(500).json({ message: "Failed to fetch history" });
+  }
+};
+
+// =======================
+// GET TODAY (FOR DASHBOARD)
+// =======================
+exports.getTodayAttendance = async (req, res) => {
+  try {
+    const now = moment().tz("Asia/Kolkata");
+    const todayStr = now.format("YYYY-MM-DD");
+
+    const record = await Attendance.findOne({
+      employee: req.user.id,
+      dateString: todayStr
     });
+
+    res.json(record || {});
+  } catch (err) {
+    res.status(500).json({ message: "Failed to fetch today attendance" });
   }
 };

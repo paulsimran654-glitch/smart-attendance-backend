@@ -28,6 +28,9 @@ app.use(
   })
 );
 
+// ✅ NEW: Serve uploaded images
+app.use("/uploads", express.static("uploads"));
+
 /* =========================
    Routes
 ========================= */

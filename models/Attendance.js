@@ -13,13 +13,11 @@ const attendanceSchema = new mongoose.Schema(
       required: true,
     },
 
-    // ✅ REAL DATE (for sorting / analytics)
     date: {
       type: Date,
       required: true,
     },
 
-    // ✅ FIX: STRING DATE (for exact matching)
     dateString: {
       type: String,
       required: true,
@@ -41,19 +39,21 @@ const attendanceSchema = new mongoose.Schema(
       default: "present",
     },
 
-    // ✅ auto-absent flag
     isAutoAbsent: {
       type: Boolean,
       default: false,
     },
+
+    // ✅ NEW FIELD
+    photo: {
+      type: String, // file path
+      default: null
+    }
+
   },
   { timestamps: true }
 );
 
-
-// =======================
-// ✅ FIXED UNIQUE INDEX
-// =======================
 attendanceSchema.index(
   { employee: 1, dateString: 1 },
   { unique: true }

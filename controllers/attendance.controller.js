@@ -2,6 +2,9 @@ const Attendance = require("../models/Attendance");
 const User = require("../models/User");
 const moment = require("moment-timezone");
 
+const fs = require("fs");
+const path = require("path");
+
 // ENV
 const OFFICE_LAT = parseFloat(process.env.OFFICE_LAT) || 0;
 const OFFICE_LNG = parseFloat(process.env.OFFICE_LNG) || 0;
@@ -31,11 +34,12 @@ function getDistance(lat1, lon1, lat2, lon2) {
 }
 
 // =======================
-// SCAN QR
+// SCAN QR + PHOTO CAPTURE (FIXED)
 // =======================
 exports.scanQR = async (req, res) => {
   try {
-    let { latitude, longitude, qr } = req.body;
+
+    let { latitude, longitude, qr, photo } = req.body;
 
     latitude = parseFloat(latitude);
     longitude = parseFloat(longitude);
@@ -102,6 +106,32 @@ exports.scanQR = async (req, res) => {
       dateString: todayStr
     });
 
+    // ================= PHOTO SAVE =================
+    let photoPath = null;
+
+    if (photo) {
+      try {
+        const base64Data = photo.replace(/^data:image\/jpeg;base64,/, "");
+
+        const fileName = `${Date.now()}_${user.employeeId}.jpg`;
+
+        const uploadDir = path.join(__dirname, "../uploads");
+
+        if (!fs.existsSync(uploadDir)) {
+          fs.mkdirSync(uploadDir);
+        }
+
+        const filePath = path.join(uploadDir, fileName);
+
+        fs.writeFileSync(filePath, base64Data, "base64");
+
+        photoPath = `/uploads/${fileName}`;
+
+      } catch (err) {
+        console.error("Photo save error:", err);
+      }
+    }
+
     // ================= CHECK-IN =================
     if (mode === "checkin") {
 
@@ -114,19 +144,27 @@ exports.scanQR = async (req, res) => {
       }
 
       let status = "present";
-
       if (minutesNow >= (9 * 60 + 16)) {
         status = "late";
       }
 
-      attendance = await Attendance.create({
-        employee: user.id,
-        employeeId: user.employeeId,
-        date: now.toDate(),
-        dateString: todayStr,
-        checkIn: now.format("HH:mm"),
-        status,
-      });
+      // ✅ FIX: CREATE OR UPDATE
+      if (!attendance) {
+        attendance = await Attendance.create({
+          employee: user.id,
+          employeeId: user.employeeId,
+          date: now.toDate(),
+          dateString: todayStr,
+          checkIn: now.format("HH:mm"),
+          status,
+          photo: photoPath
+        });
+      } else {
+        attendance.checkIn = now.format("HH:mm");
+        attendance.status = status;
+        if (photoPath) attendance.photo = photoPath;
+        await attendance.save();
+      }
 
       return res.json({
         type: "checkin",
@@ -156,6 +194,11 @@ exports.scanQR = async (req, res) => {
       }
 
       attendance.checkOut = now.format("HH:mm");
+
+      if (photoPath) {
+        attendance.photo = photoPath;
+      }
+
       await attendance.save();
 
       return res.json({
@@ -187,7 +230,7 @@ exports.getHistory = async (req, res) => {
 };
 
 // =======================
-// GET TODAY (FOR DASHBOARD)
+// GET TODAY
 // =======================
 exports.getTodayAttendance = async (req, res) => {
   try {

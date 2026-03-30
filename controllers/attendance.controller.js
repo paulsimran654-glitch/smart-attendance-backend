@@ -34,7 +34,7 @@ function getDistance(lat1, lon1, lat2, lon2) {
 }
 
 // =======================
-// SCAN QR + PHOTO CAPTURE (FIXED)
+// SCAN QR + PHOTO CAPTURE
 // =======================
 exports.scanQR = async (req, res) => {
   try {
@@ -81,6 +81,7 @@ exports.scanQR = async (req, res) => {
 
     let now = moment().tz("Asia/Kolkata");
 
+    // ✅ TEST TIME SUPPORT
     if (process.env.TEST_TIME) {
       const [hour, minute] = process.env.TEST_TIME.split(":").map(Number);
       now = now.clone().set({ hour, minute });
@@ -89,7 +90,8 @@ exports.scanQR = async (req, res) => {
     const todayStr = now.format("YYYY-MM-DD");
     const minutesNow = now.hours() * 60 + now.minutes();
 
-    if (now.isoWeekday() > 5) {
+    // ✅ FIX: ALLOW WEEKENDS IN TEST MODE
+    if (process.env.TEST_MODE !== "true" && now.isoWeekday() > 5) {
       return res.status(400).json({
         message: "Weekends not allowed",
       });
@@ -148,7 +150,6 @@ exports.scanQR = async (req, res) => {
         status = "late";
       }
 
-      // ✅ FIX: CREATE OR UPDATE
       if (!attendance) {
         attendance = await Attendance.create({
           employee: user.id,

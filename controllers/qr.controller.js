@@ -10,13 +10,13 @@ exports.getCurrentQR = async (req, res) => {
     const now = moment().tz("Asia/Kolkata");
     const day = now.isoWeekday();
 
-    // ❌ Weekend → no QR
-    if (day > 5) {
+    // ✅ FIX: Allow QR in TEST MODE even on weekends
+    if (process.env.TEST_MODE !== "true" && day > 5) {
       return res.json({ active: false });
     }
 
-    // ✅ Get latest QR from DB
-    const qr = await QR.findOne().sort({ createdAt: -1 });
+    // ✅ Get latest QR
+    const qr = await QR.findOne().sort({ updatedAt: -1 });
 
     if (!qr || !qr.active) {
       return res.json({ active: false });
@@ -39,13 +39,13 @@ exports.getCurrentQR = async (req, res) => {
 
 
 // =======================
-// SET QR (USED BY CRON)
+// SET QR
 // =======================
 exports.setQR = async (qrData) => {
   try {
 
     await QR.findOneAndUpdate(
-      {}, // single QR document
+      {},
       {
         ...qrData,
         active: true
@@ -65,7 +65,7 @@ exports.setQR = async (qrData) => {
 
 
 // =======================
-// CLEAR QR (USED BY CRON)
+// CLEAR QR
 // =======================
 exports.clearQR = async () => {
   try {

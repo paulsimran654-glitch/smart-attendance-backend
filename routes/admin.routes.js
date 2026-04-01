@@ -8,8 +8,13 @@ const {
   createEmployee,
   updateEmployee,
   deleteEmployee,
-  getAllAttendance   // ✅ added
+  getAllAttendance
 } = require("../controllers/admin.controller");
+
+// ✅ IMPORT THIS (NEW)
+const { updateCheckout } = require("../controllers/attendance.controller");
+
+/* ================= USERS ================= */
 
 /* Get all employees */
 router.get("/users", auth, requireAdmin, getAllUsers);
@@ -23,7 +28,14 @@ router.put("/users/:id", auth, requireAdmin, updateEmployee);
 /* Delete employee */
 router.delete("/users/:id", auth, requireAdmin, deleteEmployee);
 
-/* ✅ NEW: Get all attendance */
+
+/* ================= ATTENDANCE ================= */
+
+/* Get all attendance */
 router.get("/attendance", auth, requireAdmin, getAllAttendance);
+
+/* ✅ NEW: Update checkout manually (ADMIN) */
+router.put("/attendance/:id", auth, requireAdmin, updateCheckout);
+
 
 module.exports = router;

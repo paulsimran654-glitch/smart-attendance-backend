@@ -44,9 +44,15 @@ const attendanceSchema = new mongoose.Schema(
       default: false,
     },
 
-    // ✅ NEW FIELD
+    // ✅ NEW FIELD (already existing)
     photo: {
-      type: String, // file path
+      type: String,
+      default: null
+    },
+
+    // ✅ NEW FEATURE FIELD (ADDED SAFELY)
+    reason: {
+      type: String,
       default: null
     }
 

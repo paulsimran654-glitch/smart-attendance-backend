@@ -81,7 +81,6 @@ exports.scanQR = async (req, res) => {
 
     let now = moment().tz("Asia/Kolkata");
 
-    // ✅ TEST TIME SUPPORT
     if (process.env.TEST_TIME) {
       const [hour, minute] = process.env.TEST_TIME.split(":").map(Number);
       now = now.clone().set({ hour, minute });
@@ -90,7 +89,6 @@ exports.scanQR = async (req, res) => {
     const todayStr = now.format("YYYY-MM-DD");
     const minutesNow = now.hours() * 60 + now.minutes();
 
-    // ✅ FIX: ALLOW WEEKENDS IN TEST MODE
     if (process.env.TEST_MODE !== "true" && now.isoWeekday() > 5) {
       return res.status(400).json({
         message: "Weekends not allowed",
@@ -246,5 +244,41 @@ exports.getTodayAttendance = async (req, res) => {
     res.json(record || {});
   } catch (err) {
     res.status(500).json({ message: "Failed to fetch today attendance" });
+  }
+};
+
+// =======================
+// ADMIN UPDATE CHECKOUT (UPDATED WITH REASON)
+// =======================
+exports.updateCheckout = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { checkOut, reason } = req.body;
+
+    if (!checkOut) {
+      return res.status(400).json({ message: "Check-out required" });
+    }
+
+    const record = await Attendance.findById(id);
+
+    if (!record) {
+      return res.status(404).json({ message: "Record not found" });
+    }
+
+    // 🔒 Strict validation
+    if (!record.checkIn || record.checkOut || record.status === "absent") {
+      return res.status(400).json({ message: "Not allowed to edit" });
+    }
+
+    record.checkOut = checkOut;
+    record.reason = reason || null;
+
+    await record.save();
+
+    res.json({ message: "Checkout updated successfully" });
+
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: "Server error" });
   }
 };

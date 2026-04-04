@@ -25,13 +25,20 @@ exports.createEmployee = async (req, res) => {
 
     const { name, email, phone, department, password } = req.body;
 
+    // ✅ PHONE VALIDATION (NEW)
+    if (!/^[0-9]{10}$/.test(phone)) {
+      return res.status(400).json({
+        message: "Phone must be exactly 10 digits"
+      });
+    }
+
     // ✅ CHECK EMAIL
     const existing = await User.findOne({ email });
     if (existing) {
       return res.status(400).json({ message: "Email already exists" });
     }
 
-    // ✅ FIX: GET LAST EMPLOYEE (NO DUPLICATE ID)
+    // ✅ FIX: GET LAST EMPLOYEE
     const lastEmployee = await User.findOne({ role: "employee" })
       .sort({ createdAt: -1 });
 
@@ -76,6 +83,13 @@ exports.updateEmployee = async (req, res) => {
     if (!employee || employee.role !== "employee") {
       return res.status(404).json({
         message: "Employee not found"
+      });
+    }
+
+    // ✅ PHONE VALIDATION (NEW)
+    if (phone && !/^[0-9]{10}$/.test(phone)) {
+      return res.status(400).json({
+        message: "Phone must be exactly 10 digits"
       });
     }
 

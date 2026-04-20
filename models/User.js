@@ -38,7 +38,19 @@ const userSchema = new mongoose.Schema(
       type: String,
       enum: ["admin", "employee"],
       default: "employee"
+    },
+
+    // ✅ NEW FIELDS
+    otp: {
+      type: String,
+      default: null
+    },
+
+    otpExpiry: {
+      type: Date,
+      default: null
     }
+
   },
   { timestamps: true }
 );
